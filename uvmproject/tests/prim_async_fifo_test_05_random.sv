@@ -8,7 +8,7 @@
     // Estimulo : n_items y max_delay aleatorios en ambos dominios; periodos derivados de la
     //            semilla, que es el comportamiento por defecto del test base
     // Ejercita : todas, de forma no dirigida
-    // Cierra   : CP-10; condicion necesaria para CP-11 a CP-14
+    // Cierra   : CP-10; condicion necesaria para CP-12 a CP-15
     // Aprobado : cero UVM_ERROR en todas las semillas de la regresion
     //
     // Especificacion completa en 3.5.1 del plan de verificacion.

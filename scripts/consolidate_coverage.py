@@ -27,6 +27,8 @@ acertaron en la misma muestra". Esa equivalencia es la que hace legitimo
 derivar, y deja de valer si algun dia la relacion variase dentro de una
 simulacion.
 """
+import os
+import re
 import sys
 import csv
 from collections import defaultdict
@@ -34,12 +36,22 @@ from collections import defaultdict
 # Cruces del plan de verificacion (3.4.1): id -> operando de estado.
 # El segundo operando es siempre CP-10, la relacion de frecuencias.
 CROSSES = {
-    "CP-11": "CP-04",
-    "CP-12": "CP-05",
-    "CP-13": "CP-06",
-    "CP-14": "CP-07",
+    "CP-12": "CP-04",
+    "CP-13": "CP-05",
+    "CP-14": "CP-06",
+    "CP-15": "CP-07",
 }
 RATIO_POINT = "CP-10"
+
+
+# Una corrida escribe tres ficheros (env, rd, wr), asi que el identificador es
+# el nombre sin ese sufijo. Antes la clave era (test, clase, semilla) leida del
+# CONTENIDO, y el contraejemplo de la pasada CDC -mismo test y misma semilla que
+# una corrida del barrido, y clase medida que coincidia- se fusionaba con ella:
+# el recuento decia 57 donde habian corrido 58. Los aciertos nunca se vieron
+# afectados porque se suman, pero el recuento es lo que cita la documentacion.
+def run_id(path):
+    return re.sub(r"_(env|rd|wr)\.csv$", "", os.path.basename(path))
 
 
 def load(paths):
@@ -54,7 +66,7 @@ def load(paths):
             for row in csv.DictReader(fh):
                 cp, b = row["coverpoint"], row["bin"]
                 n = int(row["hits"])
-                runs.add((row["test"], row["class"], row["seed"]))
+                runs.add(run_id(path))
                 classes.add(row["class"])
                 hits[cp][b] += n
                 by_class[cp][b]          # asegura la entrada aunque no haya aciertos
@@ -94,7 +106,7 @@ def report_cross(cross_id, operand, hits, by_class, classes):
                 missing.append("{0}x{1}".format(b, c))
 
     pct = 100.0 * covered / total if total else 0.0
-    shown = ", ".join(missing[:2]) + (" +{0} mas".format(len(missing) - 2) if len(missing) > 2 else "")
+    shown = ", ".join(missing[:2]) + (" +{0} more".format(len(missing) - 2) if len(missing) > 2 else "")
     print("{0:<8} {1:>6.2f}%  {2:<42} {3}".format(
         cross_id, pct, shown if missing else "-", "{0}/{1}".format(covered, total)))
     return total, covered, missing

@@ -104,11 +104,18 @@ make run TEST=prim_async_fifo_test_01_smoke \
      DEFINES=SIMULATION PLUSARGS=cdc_instrumentation_enabled=1
 ```
 
-**La regresión por defecto no lo activa, y es deliberado.** Con la relación de
-frecuencias que el banco randomiza, el modelo opera fuera de su envolvente de
-validez y produce valores que nunca estuvieron en el cable. El apartado
-correspondiente de la documentación recoge la medida y sus consecuencias, entre
-ellas que esta clase de defecto no es alcanzable por simulación RTL.
+**El barrido general no lo activa, y es deliberado.** El módulo documenta su
+propia condición de uso en la cabecera —el retardo debe hacer que la entrada se
+salte a lo sumo un ciclo—, y la relación de frecuencias que el barrido randomiza
+la excede: fuera de ese envolvente el modelo produce valores que nunca estuvieron
+en el cable, de modo que un fallo no distinguiría el diseño del instrumento.
+
+**Dentro del envolvente sí se activa.** La regresión tiene una pasada propia, con
+su propia elaboración, en la que TEST-07 ejercita PROP-09 con la instrumentación
+en marcha y el estímulo acotado para no salirse del margen; CP-11 registra que
+estuvo activa, y un contraejemplo que debe fallar acredita que el montaje
+distingue. El apartado correspondiente de la documentación recoge las dos
+medidas.
 
 ## El diseño bajo prueba
 

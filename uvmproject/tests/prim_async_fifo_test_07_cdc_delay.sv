@@ -35,7 +35,7 @@
     // Fuera de el, el modulo mezcla el puntero de origen con el contenido del
     // primer flop estando este varios pasos atras, y produce valores Gray que
     // nunca estuvieron en el cable. El resto de la campana lo excede a
-    // proposito: cerrar CP-11 a CP-14 exige barrer relaciones de frecuencia de
+    // proposito: cerrar CP-12 a CP-15 exige barrer relaciones de frecuencia de
     // 0,4 a 2,5. De ahi que este test sea aparte y no una clase mas del barrido.
     //
     // Respetar el envolvente exige dos cosas a la vez:

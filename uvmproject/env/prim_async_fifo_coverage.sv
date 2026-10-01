@@ -23,7 +23,7 @@
         // Umbrales de CP-10, expresados en centesimas del cociente
         // rd_period_ns / wr_period_ns (3.4.7 del plan de verificacion).
         // Se declaran una sola vez porque el mismo coverpoint aparece en varios
-        // covergroups: ademas de CP-10 es el operando comun de CP-11 y CP-12, y
+        // covergroups: ademas de CP-10 es el operando comun de CP-12 y CP-13, y
         // un cruce solo puede formarse entre coverpoints del MISMO covergroup.
         localparam int unsigned RATIO_RD_FASTER_MAX = 89;    // cociente < 0,90
         localparam int unsigned RATIO_SIMILAR_MIN   = 90;    // 0,90 <= cociente <= 1,10
@@ -114,7 +114,7 @@
                 bins wr_faster   = {[RATIO_WR_FASTER_MIN:$]};
             }
 
-            // CP-11. Alcanzar una ocupacion es trivial; alcanzarla BAJO CADA
+            // CP-12. Alcanzar una ocupacion es trivial; alcanzarla BAJO CADA
             // relacion de frecuencias es lo que ejercita el cruce de dominios.
             wr_occupancy_x_ratio : cross wr_occupancy, frecuency_relationships;
         endgroup
@@ -133,7 +133,7 @@
                 bins wr_faster   = {[RATIO_WR_FASTER_MIN:$]};
             }
 
-            // CP-13. Llegar a lleno bajo cada relacion de frecuencias: es donde
+            // CP-14. Llegar a lleno bajo cada relacion de frecuencias: es donde
             // la latencia de sincronizacion se manifiesta de forma distinta.
             full_x_ratio : cross fifo_full, frecuency_relationships;
         endgroup
@@ -154,7 +154,7 @@
                 bins wr_faster   = {[RATIO_WR_FASTER_MIN:$]};
             }
 
-            // CP-12. Simetrico de CP-11 sobre la vista del dominio de lectura.
+            // CP-13. Simetrico de CP-12 sobre la vista del dominio de lectura.
             rd_occupancy_x_ratio : cross rd_occupancy, frecuency_relationships;
         endgroup
 
@@ -173,7 +173,7 @@
                 bins wr_faster   = {[RATIO_WR_FASTER_MIN:$]};
             }
 
-            // CP-14. Simetrico de CP-13. empty_rclk se calcula contra el puntero
+            // CP-15. Simetrico de CP-14. empty_rclk se calcula contra el puntero
             // de escritura sincronizado, igual que full_wclk contra el de lectura:
             // la latencia de sincronizacion se manifiesta en ambas condiciones.
             empty_x_ratio : cross fifo_empty, frecuency_relationships;
@@ -195,6 +195,21 @@
                 bins while_empty   = {0};
                 bins while_partial = {[1:PRIM_ASYNC_FIFO_DEPTH_P-1]};
                 bins while_full    = {PRIM_ASYNC_FIFO_DEPTH_P};
+            }
+        endgroup
+
+        // CP-11. Si la instrumentacion CDC de OpenTitan estaba activa en la
+        // corrida. Es, como CP-10, una condicion de la CORRIDA y no del
+        // estimulo: la fijan los flags de elaboracion y el plusarg, de modo que
+        // se muestrea una sola vez. Cerrar sus dos bins exige que la campana
+        // recorra las dos configuraciones, que es justamente lo que el plan
+        // pide: la general sin instrumentacion y la pasada CDC con ella.
+        covergroup cover_cdc_instrumentation with function sample(bit active);
+            option.per_instance = 1;
+            cdc_instrumentation : coverpoint active {
+                option.comment = "CP-11: CDC instrumentation active during the run";
+                bins disabled = {0};
+                bins enabled  = {1};
             }
         endgroup
 
@@ -232,6 +247,9 @@
             cover_reset_occupancy = new();
             cover_reset_occupancy.set_inst_name($sformatf("%s_%s", get_full_name(),"cover_reset_occupancy"));
 
+            cover_cdc_instrumentation = new();
+            cover_cdc_instrumentation.set_inst_name($sformatf("%s_%s", get_full_name(),"cover_cdc_instrumentation"));
+
             cover_frecuency_relationships = new();
             cover_frecuency_relationships.set_inst_name($sformatf("%s_%s", get_full_name(),"cover_frecuency_relationships"));
 
@@ -254,6 +272,7 @@
 
             declare_bin("CP-10.rd_faster");  declare_bin("CP-10.similar");
             declare_bin("CP-10.wr_faster");
+            declare_bin("CP-11.disabled");   declare_bin("CP-11.enabled");
         endfunction
 
         virtual function void start_of_simulation_phase(uvm_phase phase);
@@ -269,6 +288,21 @@
             ratio = (rd_period_ns / wr_period_ns)*100;
             cover_frecuency_relationships.sample(ratio);
             record_bin({"CP-10.", ratio_bin(ratio)});
+
+            // CP-11. Las dos puertas del modulo de OpenTitan: el define, que se
+            // resuelve al compilar, y el plusarg, en ejecucion. Hacen falta las
+            // dos, de modo que se comprueban las dos.
+            begin
+                bit cdc_on = 1'b0;
+                `ifdef SIMULATION
+                    bit [31:0] pa;
+                    if ($value$plusargs("cdc_instrumentation_enabled=%d", pa)) begin
+                        cdc_on = (pa != 0);
+                    end
+                `endif
+                cover_cdc_instrumentation.sample(cdc_on);
+                record_bin(cdc_on ? "CP-11.enabled" : "CP-11.disabled");
+            end
 
             // La clase que etiqueta el volcado debe ser la MEDIDA, no la que
             // el test pidio. Un test que no restringe la relacion corre con
@@ -294,14 +328,15 @@
                 $sformatf("\nCP-09: FIFO occupancy when reset was asserted: %03.2f%%", cover_reset_occupancy.reset_occupancy.get_inst_coverage()),
                 //CP-10 FIFO frecuency relationships between domains.
                 $sformatf("\nCP-10: FIFO frecuency relationships between domains: %03.2f%%", cover_frecuency_relationships.frecuency_relationships.get_inst_coverage()),
-                //"CP-11: Write domain occupancy x frecuency relationships"
-                $sformatf("\nCP-11: Write domain occupancy x frecuency relationships: %03.2f%%", wr_cover_item.wr_occupancy_x_ratio.get_inst_coverage()),
-                //"CP-12: Read domain occupancy x frecuency relationships"
-                $sformatf("\nCP-12: Read domain occupancy x frecuency relationships: %03.2f%%", rd_cover_item.rd_occupancy_x_ratio.get_inst_coverage()),
-                //"CP-13: FIFO full condition x frecuency relationships"
-                $sformatf("\nCP-13: FIFO full condition x frecuency relationships: %03.2f%%", cover_fifo_full_condition.full_x_ratio.get_inst_coverage()),
-                //"CP-14: FIFO empty condition x frecuency relationships"
-                $sformatf("\nCP-14: FIFO empty condition x frecuency relationships: %03.2f%%", cover_fifo_empty_condition.empty_x_ratio.get_inst_coverage())
+                $sformatf("\nCP-11: CDC instrumentation active during the run: %03.2f%%", cover_cdc_instrumentation.cdc_instrumentation.get_inst_coverage()),
+                //"CP-12: Write domain occupancy x frecuency relationships"
+                $sformatf("\nCP-12: Write domain occupancy x frecuency relationships: %03.2f%%", wr_cover_item.wr_occupancy_x_ratio.get_inst_coverage()),
+                //"CP-13: Read domain occupancy x frecuency relationships"
+                $sformatf("\nCP-13: Read domain occupancy x frecuency relationships: %03.2f%%", rd_cover_item.rd_occupancy_x_ratio.get_inst_coverage()),
+                //"CP-14: FIFO full condition x frecuency relationships"
+                $sformatf("\nCP-14: FIFO full condition x frecuency relationships: %03.2f%%", cover_fifo_full_condition.full_x_ratio.get_inst_coverage()),
+                //"CP-15: FIFO empty condition x frecuency relationships"
+                $sformatf("\nCP-15: FIFO empty condition x frecuency relationships: %03.2f%%", cover_fifo_empty_condition.empty_x_ratio.get_inst_coverage())
                 
             };
             return result;
@@ -396,6 +431,7 @@
             check_bin_bookkeeping("CP-08", cover_pointer_wrap.fifo_pointer_wrap.get_inst_coverage());
             check_bin_bookkeeping("CP-09", cover_reset_occupancy.reset_occupancy.get_inst_coverage());
             check_bin_bookkeeping("CP-10", cover_frecuency_relationships.frecuency_relationships.get_inst_coverage());
+            check_bin_bookkeeping("CP-11", cover_cdc_instrumentation.cdc_instrumentation.get_inst_coverage());
         endfunction
 
 

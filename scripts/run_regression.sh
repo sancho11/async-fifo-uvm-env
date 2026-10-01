@@ -4,7 +4,7 @@
 # con N semillas, y consolidacion de cobertura al final.
 #
 # ---------------------------------------------------------------------------
-# POR QUE ESTE GUION EXISTE Y QUE OPTIMIZA
+# POR QUE ESTE SCRIPT EXISTE Y QUE OPTIMIZA
 # ---------------------------------------------------------------------------
 # El flujo de XSim tiene tres pasos: xvlog compila, xelab elabora y produce un
 # SNAPSHOT, y xsim ejecuta ese snapshot. Compilar y elaborar cuesta unos 20 s;
@@ -61,8 +61,8 @@ prim_async_fifo_test_05_random
 prim_async_fifo_test_06_reset_in_flight"}
 
 # Las tres clases de CP-10. Recorrerlas no es un extra: la relacion de
-# frecuencias es constante dentro de una corrida, de modo que los cruces CP-11 a
-# CP-14 no pueden pasar de un tercio en ninguna simulacion individual.
+# frecuencias es constante dentro de una corrida, de modo que los cruces CP-12 a
+# CP-15 no pueden pasar de un tercio en ninguna simulacion individual.
 CLASSES=${CLASSES:-"wr_faster similar rd_faster"}
 SEEDS=${SEEDS:-"1 2 3"}
 
@@ -78,8 +78,9 @@ CDC_SEEDS=${CDC_SEEDS:-$SEEDS}
 CDC_CLASS_LABEL=${CDC_CLASS_LABEL:-any}
 
 # Contraejemplo. Un test que, con la instrumentacion activa, DEBE fallar: opera
-# a caudal maximo y por tanto fuera del envolvente del modelo. Si pasara, la
-# instrumentacion estaria inerte y el aprobado de TEST-07 no demostraria nada.
+# a caudal maximo y por tanto fuera del envolvente que la cabecera del modulo
+# declara. Si pasara, la instrumentacion estaria inerte y el aprobado de TEST-07
+# -que si respeta el envolvente- no demostraria nada.
 # Es la misma idea que la validacion por inyeccion: comprobar que el montaje
 # DISTINGUE, no solo que da verde.
 CDC_COUNTER=${CDC_COUNTER:-prim_async_fifo_test_04_concurrent}
@@ -90,10 +91,12 @@ CDC_COUNTER=${CDC_COUNTER:-prim_async_fifo_test_04_concurrent}
 #
 #   DEFINES=SIMULATION PLUSARGS=cdc_instrumentation_enabled=1 scripts/run_regression.sh
 #
-# No es el modo por defecto, y es deliberado: con la relacion de frecuencias que
-# el banco randomiza, ese modelo opera fuera de su envolvente de validez. La
-# documentacion recoge la medida.
-mk() { make -f "$MAKE_FILE" --no-print-directory UVM="$UVM" "$@"; }
+# No es el modo por defecto para el BARRIDO, y es deliberado: la cabecera del
+# modulo fija su condicion de uso -la entrada se salta a lo sumo un ciclo- y la
+# relacion de frecuencias que el barrido randomiza la excede. Dentro del
+# envolvente si se usa, y de eso se encarga la pasada CDC de mas abajo: TEST-07
+# con el estimulo acotado. La documentacion recoge las dos medidas.
+mk() { make -f "$MAKE_FILE" --no-print-directory UVM="$UVM" REG_OWNER="$$" "$@"; }
 
 SENTINEL="$RESULTS/.regression_active"
 
@@ -142,10 +145,10 @@ for t in $TESTS; do
             total=$((total + 1))
             mk run TEST="$t" CLASS="$c" SEED="$s" WAVES="$WAVES" >/dev/null 2>&1
             salida=$(mk check TEST="$t" CLASS="$c" SEED="$s" 2>&1)
-            echo "$salida" | grep -q "WARN  aserciones" && warned=$((warned + 1))
+            echo "$salida" | grep -q "WARN  DUT-own assertions" && warned=$((warned + 1))
             if echo "$salida" | grep -q "^PASS"; then
                 printf "   PASS  %-40s %-10s seed=%s\n" "$t" "$c" "$s"
-                echo "$salida" | grep "WARN  aserciones" || true
+                echo "$salida" | grep "WARN  DUT-own assertions" || true
             else
                 printf "   FAIL  %-40s %-10s seed=%s\n" "$t" "$c" "$s"
                 failed=$((failed + 1))
@@ -163,17 +166,17 @@ echo
 # produciendo cobertura, y saber que bins quedaron abiertos ayuda a situar el
 # fallo.
 # ---- Paso 3: segundo snapshot, con la instrumentacion CDC ----------------
-# Se libera el centinela antes de reconstruir: el snapshot va a cambiar a
-# proposito, y guard-snapshot debe poder cumplir su funcion si alguien mas lo
-# toca mientras tanto.
-rm -f "$SENTINEL"
+# El centinela se MANTIENE durante la reconstruccion. Quitarlo abria una
+# ventana en la que el snapshot compartido quedaba desprotegido justo mientras
+# se reescribia, que es el escenario que el centinela existe para impedir.
+# Quien reconstruye aqui es su dueño, y guard-snapshot lo reconoce por
+# REG_OWNER sin necesidad de bajar la guardia.
 
 echo "== Step 3/4: CDC pass  (TEST-07, PROP-09, with OpenTitan instrumentation) =="
 if ! mk compile elab DEFINES=SIMULATION > "$RESULTS/regression_build_cdc.log" 2>&1; then
     echo "   BUILD FAILED. See $RESULTS/regression_build_cdc.log"
     failed=$((failed + 1))
 else
-    echo $$ > "$SENTINEL"
     for s in $CDC_SEEDS; do
         total=$((total + 1))
         mk run TEST="$CDC_TEST" SEED="$s" WAVES="$WAVES" \
@@ -192,26 +195,28 @@ else
     mk run TEST="$CDC_COUNTER" SEED=1 WAVES="$WAVES" \
           DEFINES=SIMULATION PLUSARGS=cdc_instrumentation_enabled=1 >/dev/null 2>&1
     if mk check TEST="$CDC_COUNTER" SEED=1 >/dev/null 2>&1; then
-        printf "   FAIL  %-40s %-10s (deberia fallar y no lo hizo)\n" "$CDC_COUNTER" "contraej."
-        echo "         La instrumentacion CDC parece inerte: sin ella este test pasa,"
-        echo "         y el aprobado de $CDC_TEST no demuestra nada."
+        printf "   FAIL  %-40s %-10s (should have failed and did not)\n" "$CDC_COUNTER" "counterex."
+        echo "         CDC instrumentation looks inert: without it this test passes,"
+        echo "         so a pass on $CDC_TEST would prove nothing."
         failed=$((failed + 1))
-        failures="$failures\n     $CDC_COUNTER contraejemplo -> no fallo con la instrumentacion activa"
+        failures="$failures\n     $CDC_COUNTER counterexample -> did not fail with instrumentation active"
     else
-        printf "   OK    %-40s %-10s (falla, como debe)\n" "$CDC_COUNTER" "contraej."
+        printf "   OK    %-40s %-10s (fails, as expected)\n" "$CDC_COUNTER" "counterex."
     fi
 
-    rm -f "$SENTINEL"
 fi
+
+# A partir de aqui ya nadie reconstruye: se libera.
+rm -f "$SENTINEL"
 echo
 
 echo "   $total runs, $failed failed"
 if [ "$warned" -gt 0 ]; then
     echo
-    echo "   $warned corridas con aserciones PROPIAS DEL DUT disparadas."
-    echo "   No cuentan para el aprobado: no forman parte del plan de verificacion."
-    echo "   Un disparo suelto suele ser el reset liberado en el flanco; decenas"
-    echo "   de ellos apuntan a un defecto real en el cruce de dominios."
+    echo "   $warned runs fired DUT-OWN assertions."
+    echo "   They do not count towards the verdict: they are not part of the plan."
+    echo "   A lone firing is usually reset released on the edge; dozens of them"
+    echo "   point to a real defect in the clock domain crossing."
 fi
 if [ "$failed" -ne 0 ]; then
     printf "   Failing combinations:%b\n" "$failures"

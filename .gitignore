@@ -13,7 +13,7 @@ webtalk*
 .Xil/
 hs_err_pid*.log
 
-# El snapshot y los centinelas que genera el guion de regresion
+# El snapshot y los centinelas que genera el script de regresion
 .regression_active
 
 # ============================================================================

@@ -88,7 +88,7 @@
             
             // 2. La clase de relacion puede forzarse desde la linea de comandos,
             //    que es como la regresion recorre las tres para cerrar los
-            //    cruces CP-11 a CP-14 sin depender de que las semillas caigan
+            //    cruces CP-12 a CP-15 sin depender de que las semillas caigan
             //    donde tienen que caer.
             apply_ratio_class_plusarg();
 
@@ -113,7 +113,7 @@
         // El rango se elige para que el cociente rd/wr recorra las tres clases
         // de CP-10 —de 0,4 a 2,5— a lo largo de una regresion. Con periodos
         // fijos, N semillas ejercitarian N veces la misma relacion y los cruces
-        // CP-11 a CP-14 quedarian permanentemente en un tercio.
+        // CP-12 a CP-15 quedarian permanentemente en un tercio.
         //
         // Un test que necesite una clase concreta sobrescribe este metodo en
         // lugar de fijar valores: dirigir la clase de relacion y dejar los
@@ -181,7 +181,7 @@
         // de salida ni de la ausencia de errores:
         //
         //   1. xsim devuelve codigo de salida 0 SIEMPRE -corrida correcta,
-        //      UVM_FATAL, o test inexistente-. Comprobado. Un guion construido
+        //      UVM_FATAL, o test inexistente-. Comprobado. Un script construido
         //      sobre '|| exit 1' no puede detectar ningun fallo.
         //   2. La ausencia de errores no es exito. Un registro truncado, un
         //      simulador que ha muerto o un test que no llego a arrancar
@@ -191,7 +191,7 @@
         //      Tambien nos ocurrio: un falso positivo de PROP-13 disparando en
         //      cada reset, con el resumen diciendo "UVM_ERROR: 0".
         //
-        // De ahi un MARCADOR POSITIVO cuya AUSENCIA es fallo. El guion de
+        // De ahi un MARCADOR POSITIVO cuya AUSENCIA es fallo. El script de
         // regresion no busca errores: busca el marcador, y si no esta, la
         // corrida no paso, sin importar por que.
         // ---------------------------------------------------------------

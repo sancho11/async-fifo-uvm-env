@@ -12,7 +12,7 @@
         //Contadores de transacciones:
         int              wr_items_count;
         int              rd_items_count;
-        int reset_discarted_items_count;
+        int reset_discarded_items_count;
 
         //Scoreboard config
         bit expect_empty_at_end;
@@ -82,19 +82,19 @@
         virtual function void check_phase(uvm_phase phase);
             super.check_phase(phase);
             `uvm_info("SCOREBOARD", $sformatf("writes=%0d reads=%0d discarded_by_reset=%0d left_in_model=%0d",
-              wr_items_count, rd_items_count, reset_discarted_items_count, model.size()), UVM_LOW)
+              wr_items_count, rd_items_count, reset_discarded_items_count, model.size()), UVM_LOW)
             
             //Errores y warnings
             if (wr_items_count == 0) begin // Sin items de escritura
                 `uvm_error("SCOREBOARD", $sformatf("no write transactions were observed: the scoreboard checked nothing"))
             end
-            if (rd_items_count + reset_discarted_items_count == 0) begin // Sin items de lectura
+            if (rd_items_count + reset_discarded_items_count == 0) begin // Sin items de lectura
                 `uvm_error("SCOREBOARD", $sformatf("no read transactions were observed: the scoreboard checked nothing"))
             end
-            if (rd_items_count + reset_discarted_items_count > wr_items_count) begin // Sin items de lectura
+            if (rd_items_count + reset_discarded_items_count > wr_items_count) begin // Sin items de lectura
                 `uvm_error("PROP03", $sformatf("more reads (%0d) than writes (%0d) at end of test", rd_items_count, wr_items_count))
             end
-            if (rd_items_count + reset_discarted_items_count < wr_items_count) begin // Sin items de lectura
+            if (rd_items_count + reset_discarded_items_count < wr_items_count) begin // Sin items de lectura
                 if (expect_empty_at_end) begin
                     `uvm_error("PROP02", $sformatf("%0d written items were never read (left inside the DUT)", model.size()))
                 end else begin
@@ -109,7 +109,7 @@
             reset_port.write(model.size());
 
             //Register how much items are we discarting
-            reset_discarted_items_count+=model.size();
+            reset_discarded_items_count+=model.size();
 
             //Reset the reference model
             model.delete();

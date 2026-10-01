@@ -107,7 +107,7 @@
 
             // La CLASE de relacion de frecuencias va en columna propia y no
             // enterrada en una etiqueta: es lo que permite derivar los cruces
-            // CP-11 a CP-14 al consolidar, sin tener que contarlos aqui.
+            // CP-12 a CP-15 al consolidar, sin tener que contarlos aqui.
             $fdisplay(fd, "test,class,seed,coverpoint,bin,hits");
             foreach (bin_hits[key]) begin
                 idx = -1;

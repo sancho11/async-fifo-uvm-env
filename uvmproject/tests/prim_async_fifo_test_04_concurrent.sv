@@ -22,7 +22,7 @@
             super.new(name, parent);
         endfunction
 
-        // Para cerrar los cruces CP-11 a CP-14 este test debe ejecutarse bajo
+        // Para cerrar los cruces CP-12 a CP-15 este test debe ejecutarse bajo
         // cada relacion de frecuencias. Sobrescribir set_test_periods() para
         // restringir la CLASE de relacion, dejando los valores exactos
         // aleatorios: dirigir la clase y no los valores mantiene la

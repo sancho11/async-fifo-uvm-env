@@ -187,8 +187,8 @@ all: elab run
 
 check-env:
 	@test -n "$(SETTINGS)" || { \
-	  echo "No se encontro settings64.sh bajo $(XILINX_ROOT)."; \
-	  echo "Si Vivado quedo en otra ruta:  make -f $(THIS) <target> XILINX_ROOT=/ruta/real"; \
+	  echo "settings64.sh not found under $(XILINX_ROOT)."; \
+	  echo "If Vivado lives elsewhere:  make -f $(THIS) <target> XILINX_ROOT=/real/path"; \
 	  exit 1; }
 	@mkdir -p $(COMPAT_DIR)
 	@for l in libncurses.so.5 libtinfo.so.5; do \
@@ -208,8 +208,8 @@ $(SRC_DIR)/%.sv: opentitan/%.v
 uvm-lib: check-env $(UVM_STAMP)
 
 $(UVM_STAMP):
-	@echo ">> Compilando UVM de Accellera en $(UVM_LIB_DIR)."
-	@echo ">> Una sola vez: sobrevive a 'clean' y se comparte entre proyectos."
+	@echo ">> Compiling Accellera UVM into $(UVM_LIB_DIR)."
+	@echo ">> One time only: survives 'clean' and is shared between projects."
 	@mkdir -p $(UVM_LIB_DIR)
 	$(XSIM_ENV) cd $(UVM_LIB_DIR) && xvlog -sv -work $(UVM_LIB) -i $(UVM_SRC) \
 	  -d UVM_NO_DPI $(UVM_SRC)/uvm_pkg.sv -log xvlog_uvm.log
@@ -225,12 +225,12 @@ SNAP_CFG   = FILELIST=$(FILELIST) DEFINES=$(DEFINES) UVM=$(UVM)
 .PHONY: check-snapshot
 check-snapshot:
 	@test -f $(SNAP_STAMP) || { \
-	  echo "No hay snapshot construido. Ejecuta: make elab"; exit 1; }
+	  echo "No snapshot built. Run: make elab"; exit 1; }
 	@if [ "$$(cat $(SNAP_STAMP))" != "$(SNAP_CFG)" ]; then \
-	  echo "EL SNAPSHOT NO CORRESPONDE A LO PEDIDO."; \
-	  echo "  construido con: $$(cat $(SNAP_STAMP))"; \
-	  echo "  se pide        : $(SNAP_CFG)"; \
-	  echo "  Ejecuta 'make elab' con esos valores antes de correr."; \
+	  echo "SNAPSHOT DOES NOT MATCH WHAT WAS REQUESTED."; \
+	  echo "  built with : $$(cat $(SNAP_STAMP))"; \
+	  echo "  requested  : $(SNAP_CFG)"; \
+	  echo "  Run 'make elab' with those values before running."; \
 	  exit 1; \
 	fi
 
@@ -254,25 +254,29 @@ $(XSIM_F): $(FILELIST) | $(RESULTS)
 # esa ventana veran clases sin sus restricciones y randomize() devolvera enteros
 # en crudo. Ocurrio, y solo lo delato el guardia de post_randomize().
 #
-# El guion de regresion deja un centinela con su PID mientras corre. compile y
+# El script de regresion deja un centinela con su PID mientras corre. compile y
 # elab lo comprueban y abortan con un mensaje claro en lugar de corromper la
 # corrida en curso.
 REG_SENTINEL = $(RESULTS)/.regression_active
 
-# REG_OWNER lo exporta el guion de regresion con su propio PID. Sin el, desde
+# REG_OWNER lo exporta el script de regresion con su propio PID. Sin el, desde
 # que 'run' depende de 'elab' cada corrida de la regresion chocaba contra el
 # centinela que la propia regresion habia puesto.
 REG_OWNER ?=
 
+# Las dos comprobaciones van en UNA sola receta a proposito. Separadas en dos
+# lineas, el 'exit 0' del reconocimiento del dueno terminaba solo su propia
+# sub-shell: make pasaba a la linea siguiente y la regresion se rechazaba a si
+# misma al reconstruir para la pasada CDC.
 guard-snapshot:
-	@if [ -f $(REG_SENTINEL) ] && [ "$(REG_OWNER)" = "$$(cat $(REG_SENTINEL))" ]; then \
-	  exit 0; \
-	fi
-	@if [ -f $(REG_SENTINEL) ] && kill -0 "$$(cat $(REG_SENTINEL))" 2>/dev/null; then \
-	  echo "REFUSING TO REBUILD: a regression is running (PID $$(cat $(REG_SENTINEL)))."; \
-	  echo "  The snapshot is shared. Rebuilding it now would corrupt that regression."; \
-	  echo "  Wait for it to finish, or run the regression with a different RESULTS dir."; \
-	  exit 1; \
+	@if [ -f $(REG_SENTINEL) ]; then \
+	  owner=$$(cat $(REG_SENTINEL)); \
+	  if [ "$(REG_OWNER)" != "$$owner" ] && kill -0 "$$owner" 2>/dev/null; then \
+	    echo "REFUSING TO REBUILD: a regression is running (PID $$owner)."; \
+	    echo "  The snapshot is shared. Rebuilding it now would corrupt that regression."; \
+	    echo "  Wait for it to finish, or run the regression with a different RESULTS dir."; \
+	    exit 1; \
+	  fi; \
 	fi
 
 # Borra los artefactos POR CORRIDA y deja intacto el snapshot: el sentido de que
@@ -353,9 +357,9 @@ run: check-env check-snapshot force-tcl $(TCL) | $(RESULTS)
 #
 # El VCD con nombre propio se conserva: last.vcd es una copia, no un sustituto.
 wave-last:
-	@test -f $(WAVE) || { echo "No existe $(WAVE): no hay nada que copiar a $(WAVELAST)."; exit 1; }
+	@test -f $(WAVE) || { echo "$(WAVE) does not exist: nothing to copy to $(WAVELAST)."; exit 1; }
 	@cp $(WAVE) $(WAVELAST)
-	@echo "[wave] $(WAVE) -> $(WAVELAST)  (Ctrl+Shift+R en GTKWave para refrescar)"
+	@echo "[wave] $(WAVE) -> $(WAVELAST)  (Ctrl+Shift+R in GTKWave to refresh)"
 
 # ===== Veredicto de una corrida =====
 #
@@ -384,9 +388,9 @@ force-tcl:
 # de ciclo y se libera justo en el flanco, donde el 'disable iff' de esa
 # asercion ya no protege.
 check:
-	@test -f $(LOG) || { echo "FAIL  $(TEST) seed=$(SEED)  (no existe $(LOG))"; exit 1; }
+	@test -f $(LOG) || { echo "FAIL  $(TEST) seed=$(SEED)  ($(LOG) does not exist)"; exit 1; }
 	@if grep -q 'ASSERT FAILED' $(LOG); then \
-	  echo "      WARN  aserciones propias del DUT: $$(grep -c 'ASSERT FAILED' $(LOG)) ($$(grep -oE '\[ASSERT FAILED\] [A-Za-z_0-9]+' $(LOG) | sort -u | sed 's/.*\] //' | tr '\n' ' '))"; \
+	  echo "      WARN  DUT-own assertions: $$(grep -c 'ASSERT FAILED' $(LOG)) ($$(grep -oE '\[ASSERT FAILED\] [A-Za-z_0-9]+' $(LOG) | sort -u | sed 's/.*\] //' | tr '\n' ' '))"; \
 	fi
 	@if grep -q '\*\*\* TEST PASSED \*\*\*' $(LOG); then \
 	  echo "PASS  $(TEST) seed=$(SEED)"; \
@@ -404,10 +408,10 @@ check:
 # Se usa "pgrep -x" (nombre exacto del proceso) y no "-f", porque con -f el propio
 # shell que ejecuta esta receta contiene la cadena "gtkwave" y siempre coincidiria.
 wave:
-	@test -f $(WAVELAST) || { echo "No existe $(WAVELAST). Ejecuta 'make -f $(THIS) run' primero."; exit 1; }
+	@test -f $(WAVELAST) || { echo "$(WAVELAST) does not exist. Run 'make -f $(THIS) run' first."; exit 1; }
 	@if pgrep -x gtkwave >/dev/null 2>&1; then \
-	  echo "GTKWave ya esta abierto (PID $$(pgrep -x gtkwave | tr '\n' ' ')): no se lanza otra instancia."; \
-	  echo "Recarga la onda desde el GUI con Ctrl+Shift+R  (File -> Reload Waveform)."; \
+	  echo "GTKWave is already open (PID $$(pgrep -x gtkwave | tr '\n' ' ')): not launching another instance."; \
+	  echo "Reload the waveform from the GUI with Ctrl+Shift+R  (File -> Reload Waveform)."; \
 	else \
 	  echo "$(GUI_ENV) gtkwave $(WAVELAST) $(GTKWUSE) &"; \
 	  $(GUI_ENV) gtkwave $(WAVELAST) $(GTKWUSE) & \
@@ -415,7 +419,7 @@ wave:
 
 # Igual que 'wave' pero lanza una instancia nueva aunque ya haya una abierta.
 wave-force:
-	@test -f $(WAVELAST) || { echo "No existe $(WAVELAST). Ejecuta 'make -f $(THIS) run' primero."; exit 1; }
+	@test -f $(WAVELAST) || { echo "$(WAVELAST) does not exist. Run 'make -f $(THIS) run' first."; exit 1; }
 	$(GUI_ENV) gtkwave $(WAVELAST) $(GTKWUSE) &
 
 # OJO: los plusargs de traza de UVM (+UVM_PHASE_TRACE, +UVM_OBJECTION_TRACE,
@@ -473,18 +477,18 @@ cov-report:
 #
 # Este target se deja porque funcionaria tal cual con una licencia PRO.
 cov: check-env
-	@test -d $(COVDB) || { echo "No existe $(COVDB). Corre con COV=1 primero."; exit 1; }
-	@echo ">> xcrg requiere licencia PRO; con la gratuita (BASIC) esto va a fallar."
-	@echo ">> Alternativa sin licencia:  make -f $(THIS) cov-log"
+	@test -d $(COVDB) || { echo "$(COVDB) does not exist. Run with COV=1 first."; exit 1; }
+	@echo ">> xcrg needs a PRO license; with the free one (BASIC) this will fail."
+	@echo ">> License-free alternative:  make -f $(THIS) cov-log"
 	$(XSIM_ENV) xcrg -cov_db_dir $(COVDB) -report_format html \
 	  -report_dir $(RESULTS)/cov_html -log $(RESULTS)/xcrg.log
-	@echo "Informe en $(RESULTS)/cov_html/index.html"
+	@echo "Report in $(RESULTS)/cov_html/index.html"
 
 # Cobertura de la ultima corrida, leida del log. No necesita licencia PRO.
 cov-log:
-	@test -f $(LOG) || { echo "No existe $(LOG). Ejecuta 'make -f $(THIS) run' primero."; exit 1; }
+	@test -f $(LOG) || { echo "$(LOG) does not exist. Run 'make -f $(THIS) run' first."; exit 1; }
 	@grep -E "^ *(cover_|[a-z_]+: +[0-9]+\.[0-9]+%)|Coverage:|Child component:" $(LOG) || \
-	  echo "Sin datos de cobertura en $(LOG)."
+	  echo "No coverage data in $(LOG)."
 
 # Solo artefactos de XSim. NO se hace 'rm *.log' a proposito: en la raiz del
 # repo viven compile.log, dsim.log y tr_db.log, que son del flujo de DSim y no
