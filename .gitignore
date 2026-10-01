@@ -1,0 +1,46 @@
+# ============================================================================
+# Salidas del simulador (Vivado XSim)
+# ============================================================================
+xsim.dir/
+xsim.covdb/
+results/
+*.wdb
+*.jou
+*.pb
+*.log
+*.str
+webtalk*
+.Xil/
+hs_err_pid*.log
+
+# El snapshot y los centinelas que genera el guion de regresion
+.regression_active
+
+# ============================================================================
+# Documentacion: solo se versiona el PDF
+# ============================================================================
+docs/*.md
+docs/latexproject/
+
+# Excepcion: el documento compilado si se versiona
+!docs/documentacion-proyecto.pdf
+
+# ============================================================================
+# Ejercicios de practica, ajenos a este proyecto
+# ============================================================================
+uvmpractice/
+
+# ============================================================================
+# Varios
+# ============================================================================
+*~
+*.swp
+*.bak
+.DS_Store
+__pycache__/
+*.pyc
+
+# Artefactos del experimento de mutacion, que scripts/make_mutant.sh regenera.
+# Es RTL de terceros modificado: no se versiona para no confundirlo con el real.
+mutant_gray/
+filelist_mutant.f
